@@ -102,7 +102,7 @@ local TickerW = GetTickCount()
 end)
 
 OnDraw(function(myHero)
--- local myHeroP = GetOrigin(myHero)
+-- local myHeroPos = GetOrigin(myHero)
 -- R Drawings
 if mainMenu.Drawings.DrawRShadow:Value() then
 if RPos ~= nil and CanUseSpell(myHero,_Q) == READY and CanUseSpell(myHero,_E) == READY then
@@ -155,7 +155,7 @@ end)
 OnTick(function(myHero)
 
 local target = GetCurrentTarget()
-local myHeroP = GetOrigin(myHero)
+local myHeroPos = GetOrigin(myHero)
 
 -- Items
 local CutBlade = GetItemSlot(myHero,3144)
@@ -265,13 +265,13 @@ end
 -- W
 if mainMenu.Combo.useW:Value() then
 	if CanUseSpell(myHero,_W) == READY and ValidTarget(target, GetCastRange(myHero,_W)+GetRange(myHero)) and not IsInDistance(target, GetCastRange(myHero,_E)) and mainMenu.Combo.gabW:Value() then
-		local WPred = GetPredictionForPlayer(myHeroP,target,GetMoveSpeed(target),300,300,GetCastRange(myHero,_W)+GetRange(myHero),250,false,false)
+		local WPred = GetPredictionForPlayer(myHeroPos,target,GetMoveSpeed(target),300,300,GetCastRange(myHero,_W)+GetRange(myHero),250,false,false)
             if WPred.HitChance == 1 then
 				CastSkillShot(_W,WPred.PredPos.x,WPred.PredPos.y,WPred.PredPos.z)
 			end
 	elseif CanUseSpell(myHero,_W) == READY and GotBuff(myHero,"zedwhandler") == 0 and ValidTarget(target, GetCastRange(myHero,_W)+GetRange(myHero)) and not IsInDistance(target, GetRange(myHero)) and not mainMenu.Combo.gabW:Value() then
 		 local Ticker = GetTickCount()
-		 local WPred = GetPredictionForPlayer(myHeroP,target,GetMoveSpeed(target),300,300,GetCastRange(myHero,_W)+GetRange(myHero),250,false,false)
+		 local WPred = GetPredictionForPlayer(myHeroPos,target,GetMoveSpeed(target),300,300,GetCastRange(myHero,_W)+GetRange(myHero),250,false,false)
 			if (global_ticks + 5000) < Ticker then
 				if WPred.HitChance == 1 then
 					CastSkillShot(_W,WPred.PredPos.x,WPred.PredPos.y,WPred.PredPos.z)
@@ -300,7 +300,7 @@ MoveToXYZ(GetMousePos())
 if mainMenu.Harass.hW:Value() and GetCurrentMana(myHero) >= GetCastMana(myHero,_W,GetCastLevel(myHero,_W)) + GetCastMana(myHero,_Q,GetCastLevel(myHero,_Q)) + GetCastMana(myHero,_E,GetCastLevel(myHero,_E)) then
 	if CanUseSpell(myHero,_W) == READY and GotBuff(myHero,"zedwhandler") == 0 and ValidTarget(target, GetCastRange(myHero,_W)+GetRange(myHero)) and not IsInDistance(target, GetRange(myHero)) then
 		 local Ticker = GetTickCount()
-		 local WPred = GetPredictionForPlayer(myHeroP,target,GetMoveSpeed(target),300,300,GetCastRange(myHero,_W)+GetRange(myHero),250,false,false)
+		 local WPred = GetPredictionForPlayer(myHeroPos,target,GetMoveSpeed(target),300,300,GetCastRange(myHero,_W)+GetRange(myHero),250,false,false)
 			if (global_ticks + 5000) < Ticker then
 				if WPred.HitChance == 1 then
 					CastSkillShot(_W,WPred.PredPos.x,WPred.PredPos.y,WPred.PredPos.z)
@@ -337,25 +337,25 @@ end --Harass]
 end)
 
 function Drawings()
-myHeroP = GetOrigin(myHero)
-if CanUseSpell(myHero, _Q) == READY and mainMenu.Drawings.DrawQ:Value() then DrawCircle(myHeroP.x,myHeroP.y,myHeroP.z,GetCastRange(myHero,_Q),1,100,0xff00ff00)
-	elseif CanUseSpell(myHero, _Q) == ONCOOLDOWN and mainMenu.Drawings.DrawQ:Value() then DrawCircle(myHeroP.x,myHeroP.y,myHeroP.z,GetCastRange(myHero,_Q),1,100,0xffff0000)
+myHeroPos = GetOrigin(myHero)
+if CanUseSpell(myHero, _Q) == READY and mainMenu.Drawings.DrawQ:Value() then DrawCircle(myHeroPos.x,myHeroPos.y,myHeroPos.z,GetCastRange(myHero,_Q),1,100,0xff00ff00)
+	elseif CanUseSpell(myHero, _Q) == ONCOOLDOWN and mainMenu.Drawings.DrawQ:Value() then DrawCircle(myHeroPos.x,myHeroPos.y,myHeroPos.z,GetCastRange(myHero,_Q),1,100,0xffff0000)
 	end
-if CanUseSpell(myHero, _W) == READY and mainMenu.Drawings.DrawW:Value() then DrawCircle(myHeroP.x,myHeroP.y,myHeroP.z,GetCastRange(myHero,_W)+GetRange(myHero),1,100,0xff00ff00)
-	elseif CanUseSpell(myHero, _W) == ONCOOLDOWN and mainMenu.Drawings.DrawW:Value() then DrawCircle(myHeroP.x,myHeroP.y,myHeroP.z,GetCastRange(myHero,_W)+GetRange(myHero),1,100,0xffff0000)
+if CanUseSpell(myHero, _W) == READY and mainMenu.Drawings.DrawW:Value() then DrawCircle(myHeroPos.x,myHeroPos.y,myHeroPos.z,GetCastRange(myHero,_W)+GetRange(myHero),1,100,0xff00ff00)
+	elseif CanUseSpell(myHero, _W) == ONCOOLDOWN and mainMenu.Drawings.DrawW:Value() then DrawCircle(myHeroPos.x,myHeroPos.y,myHeroPos.z,GetCastRange(myHero,_W)+GetRange(myHero),1,100,0xffff0000)
 	end
-if CanUseSpell(myHero, _E) == READY and mainMenu.Drawings.DrawE:Value() then DrawCircle(myHeroP.x,myHeroP.y,myHeroP.z,GetCastRange(myHero,_E),1,100,0xff00ff00) 
-	elseif CanUseSpell(myHero, _E) == ONCOOLDOWN and mainMenu.Drawings.DrawE:Value() then DrawCircle(myHeroP.x,myHeroP.y,myHeroP.z,GetCastRange(myHero,_E),1,100,0xffff0000)
+if CanUseSpell(myHero, _E) == READY and mainMenu.Drawings.DrawE:Value() then DrawCircle(myHeroPos.x,myHeroPos.y,myHeroPos.z,GetCastRange(myHero,_E),1,100,0xff00ff00) 
+	elseif CanUseSpell(myHero, _E) == ONCOOLDOWN and mainMenu.Drawings.DrawE:Value() then DrawCircle(myHeroPos.x,myHeroPos.y,myHeroPos.z,GetCastRange(myHero,_E),1,100,0xffff0000)
 	end
-if CanUseSpell(myHero, _R) == READY and mainMenu.Drawings.DrawR:Value() then DrawCircle(myHeroP.x,myHeroP.y,myHeroP.z,GetCastRange(myHero,_R),1,100,0xff00ff00) 
-	elseif CanUseSpell(myHero, _R) == ONCOOLDOWN and mainMenu.Drawings.DrawR:Value() then DrawCircle(myHeroP.x,myHeroP.y,myHeroP.z,GetCastRange(myHero,_R),1,100,0xffff0000)
+if CanUseSpell(myHero, _R) == READY and mainMenu.Drawings.DrawR:Value() then DrawCircle(myHeroPos.x,myHeroPos.y,myHeroPos.z,GetCastRange(myHero,_R),1,100,0xff00ff00) 
+	elseif CanUseSpell(myHero, _R) == ONCOOLDOWN and mainMenu.Drawings.DrawR:Value() then DrawCircle(myHeroPos.x,myHeroPos.y,myHeroPos.z,GetCastRange(myHero,_R),1,100,0xffff0000)
 	end
 end
 
 function useQ(target, mode)
 -- Q
 	if CanUseSpell(myHero,_Q) == READY and ValidTarget(target, GetCastRange(myHero,_Q)) and mode then
-		local QPred = GetPredictionForPlayer(myHeroP,target,GetMoveSpeed(target),1700,250,GetCastRange(myHero,_Q),50,false,false)
+		local QPred = GetPredictionForPlayer(myHeroPos,target,GetMoveSpeed(target),1700,250,GetCastRange(myHero,_Q),50,false,false)
 			if QPred.HitChance == 1 then
 				CastSkillShot(_Q,QPred.PredPos.x,QPred.PredPos.y,QPred.PredPos.z)
 			end
