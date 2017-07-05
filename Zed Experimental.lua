@@ -1,5 +1,7 @@
 if GetObjectName(GetMyHero()) ~= "Zed" then return end
 
+require('Inspired')
+
 if not pcall( require, "Inspired" ) then PrintChat("You are missing Inspired.lua!") return end
 
 local mainMenu = Menu("Experimental Zed", "Zed")
