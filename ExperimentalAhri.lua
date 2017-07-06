@@ -1,56 +1,304 @@
-require('math')
+if GetObjectName(GetMyHero()) ~= "Ahri" then return end
 
-local index_table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+require('Inspired')
+require('DeftLib')
+require('DamageLib')
+require("OpenPredict")
 
+local AhriMenu = MenuConfig("Experimental Ahri", "Ahri")
+AhriMenu:Menu("Combo", "Combo")
+AhriMenu.Combo:Boolean("Q", "Use Q", true)
+AhriMenu.Combo:Boolean("W", "Use W", true)
+AhriMenu.Combo:Boolean("E", "Use E", true)
+AhriMenu.Combo:Boolean("R", "Use R", true)
+AhriMenu.Combo:DropDown("RMode", "R Mode", 1, {"Logic", "to mouse"})
+----------------------------------------------------------------------
+AhriMenu:Menu("Harass", "Harass")
+AhriMenu.Harass:Boolean("Q", "Use Q", true)
+AhriMenu.Harass:Boolean("W", "Use W", true)
+AhriMenu.Harass:Boolean("E", "Use E", true)
+AhriMenu.Harass:Slider("Mana", "if Mana % >", 30, 0, 80, 1)
+----------------------------------------------------------------------
+AhriMenu:Menu("Killsteal", "Killsteal")
+AhriMenu.Killsteal:Boolean("Q", "Killsteal with Q", true)
+AhriMenu.Killsteal:Boolean("W", "Killsteal with W", true)
+AhriMenu.Killsteal:Boolean("E", "Killsteal with E", true)
+----------------------------------------------------------------------
+if Ignite ~= nil then 
+AhriMenu:Menu("Misc", "Misc")
+AhriMenu.Misc:Boolean("Autoignite", "Auto Ignite", true) 
+end
+----------------------------------------------------------------------
+AhriMenu:Menu("Lasthit", "Lasthit")
+AhriMenu.Lasthit:Boolean("Q", "Use Q", false)
+AhriMenu.Lasthit:Slider("Mana", "if Mana % >", 50, 0, 80, 1)
+----------------------------------------------------------------------
+AhriMenu:Menu("LaneClear", "LaneClear")
+AhriMenu.LaneClear:Boolean("Q", "Use Q", true)
+AhriMenu.LaneClear:Boolean("W", "Use W", false)
+AhriMenu.LaneClear:Boolean("E", "Use E", false)
+AhriMenu.LaneClear:Slider("Mana", "if Mana % >", 30, 0, 80, 1)
+----------------------------------------------------------------------
+AhriMenu:Menu("JungleClear", "JungleClear")
+AhriMenu.JungleClear:Boolean("Q", "Use Q", true)
+AhriMenu.JungleClear:Boolean("W", "Use W", true)
+AhriMenu.JungleClear:Boolean("E", "Use E", true)
+AhriMenu.JungleClear:Slider("Mana", "if Mana % >", 30, 0, 80, 1)
+----------------------------------------------------------------------
+AhriMenu:Menu("Drawings", "Drawings")
+AhriMenu.Drawings:Boolean("Orb", "Draw Orb (Q)", true)
+AhriMenu.Drawings:Boolean("Q", "Draw Q Range", true)
+AhriMenu.Drawings:Boolean("W", "Draw W Range", true)
+AhriMenu.Drawings:Boolean("E", "Draw E Range", true)
+AhriMenu.Drawings:Boolean("R", "Draw R Range", true)
+----------------------------------------------------------------------
+AhriMenu:Menu("Interrupt", "Interrupt (E)")
 
-function to_binary(integer)
-    local remaining = tonumber(integer)
-    local bin_bits = ''
-
-    for i = 7, 0, -1 do
-        local current_power = math.pow(2, i)
-
-        if remaining >= current_power then
-            bin_bits = bin_bits .. '1'
-            remaining = remaining - current_power
-        else
-            bin_bits = bin_bits .. '0'
+DelayAction(function()
+  local str = {[_Q] = "Q", [_W] = "W", [_E] = "E", [_R] = "R"}
+  for i, spell in pairs(CHANELLING_SPELLS) do
+    for _,k in pairs(GetEnemyHeroes()) do
+        if spell["Name"] == GetObjectName(k) then
+        AhriMenu.Interrupt:Boolean(GetObjectName(k).."Inter", "On "..GetObjectName(k).." "..(type(spell.Spellslot) == 'number' and str[spell.Spellslot]), true)
         end
     end
-
-    return bin_bits
+  end
+end, 1)
+----------------------------------------------------------------------
+local function Mode()
+    if IOW_Loaded then 
+        return IOW:Mode()
+    elseif DAC_Loaded then 
+        return DAC:Mode()
+    elseif PW_Loaded then 
+        return PW:Mode()
+    elseif GoSWalkLoaded and GoSWalk.CurrentMode then 
+        return ({"Combo", "Harass", "LaneClear", "LastHit"})[GoSWalk.CurrentMode+1]
+    elseif AutoCarry_Loaded then 
+        return DACR:Mode()
+    elseif _G.SLW_Loaded then 
+        return SLW:Mode()
+    elseif EOW_Loaded then 
+        return EOW:Mode()
+    end
+    return ""
 end
+----------------------------------------------------------------------
+OnProcessSpell(function(unit, spell)
+    if GetObjectType(unit) == Obj_AI_Hero and GetTeam(unit) ~= GetTeam(myHero) and IsReady(_E) then
+      if CHANELLING_SPELLS[spell.name] then
+        if ValidTarget(unit, 1000) and GetObjectName(unit) == CHANELLING_SPELLS[spell.name].Name and AhriMenu.Interrupt[GetObjectName(unit).."Inter"]:Value() then 
+        Cast(_E,unit)
+        end
+      end
+    end
+end)
+----------------------------------------------------------------------
+local target1 = TargetSelector(930,TARGET_LESS_CAST_PRIORITY,DAMAGE_MAGIC,true,false)
+local target2 = TargetSelector(1030,TARGET_LESS_CAST_PRIORITY,DAMAGE_MAGIC,true,false)
+local target3 = TargetSelector(900,TARGET_LESS_CAST_PRIORITY,DAMAGE_MAGIC,true,false)
+local UltOn = false
+local Missiles = {}
 
-function from_binary(bin_bits)
-    return tonumber(bin_bits, 2)
+OnCreateObj(function(Object) 
+  if GetObjectBaseName(Object) == "missile" then
+  table.insert(Missiles,Object) 
+  end
+end)
+
+OnDeleteObj(function(Object)
+  if GetObjectBaseName(Object) == "missile" then
+    for i,rip in pairs(Missiles) do
+      if GetNetworkID(Object) == GetNetworkID(rip) then
+      table.remove(Missiles,i) 
+      end
+    end
+  end
+end)
+----------------------------------------------------------------------
+OnDraw(function(myHero)
+local pos = GetOrigin(myHero)
+if AhriMenu.Drawings.Orb:Value() then
+  for _,Orb in pairs(Missiles) do
+    if Orb ~= nil and GetObjectSpellOwner(Orb) == myHero and GetObjectSpellName(Orb) == "AhriOrbMissile" or GetObjectSpellName(Orb) == "AhriOrbReturn" then
+    DrawRectangleOutline(pos, GetOrigin(Orb), 80)
+    DrawCircle(GetOrigin(Orb),80,2,30,ARGB(255, 255, 0, 0)) 
+    end
+  end
 end
+----------------------------------------------------------------------
+if AhriMenu.Drawings.Q:Value() then DrawCircle(pos,880,1,25,GoS.Pink) end
+if AhriMenu.Drawings.W:Value() then DrawCircle(pos,700,1,25,GoS.Yellow) end
+if AhriMenu.Drawings.E:Value() then DrawCircle(pos,975,1,25,GoS.Blue) end
+if AhriMenu.Drawings.R:Value() then DrawCircle(pos,550,1,25,GoS.Green) end
+end)
+----------------------------------------------------------------------
+OnTick(function(myHero)
 
-function CloudDecode(to_decode)
-    local padded = to_decode:gsub("%s", "")
-    local unpadded = padded:gsub("=", "")
-    local bit_pattern = ''
-    local decoded = ''
+    local target = GetCurrentTarget()
+    local Qtarget = target1:GetTarget()
+    local Etarget = target2:GetTarget()
+    local Rtarget = target3:GetTarget()
+    local mousePos = GetMousePos()
+    ----------------------------------------------------------------------
+      if Mode() == "Combo" then
 
-    for i = 1, string.len(unpadded) do
-        local char = string.sub(to_decode, i, i)
-        local offset, _ = string.find(index_table, char)
-        if offset == nil then
-             error("Invalid character '" .. char .. "' found.")
+        if IsReady(_E) and AhriMenu.Combo.E:Value() then
+        Cast(_E,Etarget)
+        end
+	
+        if AhriMenu.Combo.RMode:Value() == 1 and AhriMenu.Combo.R:Value() and ValidTarget(Rtarget,900) then
+          local BestPos = Vector(Rtarget) - (Vector(Rtarget) - Vector(myHero)):perpendicular():normalized() * 350
+	  if UltOn and BestPos then
+          CastSkillShot(_R,BestPos)
+          elseif IsReady(_R) and BestPos and getdmg("Q",Rtarget)+getdmg("W",Rtarget,myHero,3)+getdmg("E",Rtarget)+getdmg("R",Rtarget) > GetHP2(Rtarget) then
+	  CastSkillShot(_R,BestPos)
+	  end
+	end
+
+        if AhriMenu.Combo.RMode:Value() == 2 and AhriMenu.Combo.R:Value() and ValidTarget(Rtarget,900)then
+          local AfterTumblePos = GetOrigin(myHero) + (Vector(mousePos) - GetOrigin(myHero)):normalized() * 550
+          local DistanceAfterTumble = GetDistance(AfterTumblePos, Rtarget)
+   	  if UltOn and DistanceAfterTumble < 550 then
+	  CastSkillShot(_R,mousePos)
+          elseif IsReady(_R) and getdmg("Q",Rtarget)+getdmg("W",Rtarget,myHero,3)+getdmg("E",Rtarget)+getdmg("R",Rtarget) > GetHP2(Rtarget) then
+	  CastSkillShot(_R,mousePos) 
+          end
+	end
+			
+	if IsReady(_W) and ValidTarget(target,700) and AhriMenu.Combo.W:Value() then
+	CastSpell(_W)
+	end
+		
+	if IsReady(_Q) and ValidTarget (target, 700) and AhriMenu.Combo.Q:Value() then
+        Cast(_Q,Qtarget)
+        end
+					
+    end
+    ----------------------------------------------------------------------
+        if Mode() == "Harass" and GetPercentMP(myHero) >= AhriMenu.Harass.Mana:Value() then
+
+        if IsReady(_E) and AhriMenu.Harass.E:Value() then
+        Cast(_E,target)
+        end
+				
+        if IsReady(_W) and ValidTarget(target, 700) and AhriMenu.Harass.W:Value() then
+	CastSpell(_W)
+	end
+		
+	if IsReady(_Q) and ValidTarget(target, 700) and AhriMenu.Harass.Q:Value() then
+        CastSkillShot(_Q,target)
+        end
+		
+    end
+	
+    for i,enemy in pairs(GetEnemyHeroes()) do
+    	
+	if Ignite and AhriMenu.Misc.Autoignite:Value() then
+          if IsReady(Ignite) and 20*GetLevel(myHero)+50 > GetHP(enemy)+GetHPRegen(enemy)*3 and ValidTarget(enemy, 600) then
+          CastTargetSpell(enemy, Ignite)
+          end
+        end
+                
+	if IsReady(_W) and ValidTarget(enemy, 930) and AhriMenu.Killsteal.W:Value() and GetHP2(enemy) < getdmg("W",enemy,myHero,3) then
+	CastSpell(_W)
+	elseif IsReady(_Q) and ValidTarget(enemy, 700) and AhriMenu.Killsteal.Q:Value() and GetHP2(enemy) < getdmg("Q",enemy) then 
+	Cast(_Q,enemy)
+	elseif IsReady(_E) and ValidTarget(enemy, 1030) and AhriMenu.Killsteal.E:Value() and GetHP2(enemy) < getdmg("E",enemy) then
+	Cast(_E,enemy)
         end
 
-        bit_pattern = bit_pattern .. string.sub(to_binary(offset-1), 3)
-    end
+  end
+  ----------------------------------------------------------------------
+  if Mode() == "LaneClear" then
+     	
+        local closeminion = ClosestMinion(GetOrigin(myHero), MINION_ENEMY)
+        if GetPercentMP(myHero) >= AhriMenu.LaneClear.Mana:Value() then
+       	
+         if IsReady(_Q) and AhriMenu.LaneClear.Q:Value() then
+           local BestPos, BestHit = GetLineFarmPosition(880, 50, MINION_ENEMY)
+           if BestPos and BestHit > 2 then 
+           CastSkillShot(_Q, BestPos)
+           end
+	 end
 
-    for i = 1, string.len(bit_pattern), 8 do
-        local byte = string.sub(bit_pattern, i, i+7)
-        decoded = decoded .. string.char(from_binary(byte))
-    end
+         if IsReady(_W) and AhriMenu.LaneClear.W:Value() then
+           if GetCurrentHP(closeminion) < getdmg("W",closeminion,myHero,3) and ValidTarget(closestminion, 700) then
+           CastSpell(_W)
+           end
+         end
 
-    local padding_length = padded:len()-unpadded:len()
+         if IsReady(_E) and AhriMenu.LaneClear.E:Value() then
+           if GetCurrentHP(closeminion) < getdmg("E",closeminion) and ValidTarget(closestminion, 1000) then
+           CastSkillShot(_E, GetOrigin(closeminion))
+           end
+         end
+        
+        end
 
-    if (padding_length == 1 or padding_length == 2) then
-        decoded = decoded:sub(1,-2)
-    end
-    return decoded
+  end
+  ----------------------------------------------------------------------
+  for i,mobs in pairs(minionManager.objects) do
+        if Mode() == "LaneClear" and GetTeam(mobs) == 300 and GetPercentMP(myHero) >= AhriMenu.JungleClear.Mana:Value() then
+          if IsReady(_Q) and AhriMenu.JungleClear.Q:Value() and ValidTarget(mobs, 880) then
+          CastSkillShot(_Q,GetOrigin(mobs))
+	  end
+		
+	  if IsReady(_W) and AhriMenu.JungleClear.W:Value() and ValidTarget(mobs, 700) then
+	  CastSpell(_W)
+	  end
+		
+	  if IsReady(_E) and AhriMenu.JungleClear.E:Value() and ValidTarget(mobs, 1000) then
+	  CastSkillShot(_E,GetOrigin(mobs))
+          end
+        end
+     	
+     	----------------------------------------------------------------------
+	if Mode() == "LastHit" and GetTeam(mobs) == MINION_ENEMY and GetPercentMP(myHero) >= AhriMenu.Lasthit.Mana:Value() then
+	  if IsReady(_Q) and ValidTarget(mobs, 880) and AhriMenu.Lasthit.Q:Value() and GetCurrentHP(mobs)-GetDamagePrediction(mobs, 250+GetDistance(mobs)/2500) < getdmg("Q",mobs) and GetCurrentHP(mobs)-GetDamagePrediction(mobs, 250+GetDistance(mobs)/2500) > 0 then
+          CastSkillShot(_Q, GetOrigin(mobs))
+       	  end
+        end
+    end       
+
+end)
+----------------------------------------------------------------------
+OnUpdateBuff(function(unit,buff)
+  if buff.Name == "ahritumble" then 
+  UltOn = true
+  end
+end)
+
+OnRemoveBuff(function(unit,buff)
+  if buff.Name == "ahritumble" then 
+  UltOn = false
+  end
+end)
+----------------------------------------------------------------------
+function DrawRectangleOutline(startPos, endPos, width)
+	local c1 = startPos+Vector(Vector(endPos)-startPos):perpendicular():normalized()*width/2
+	local c2 = startPos+Vector(Vector(endPos)-startPos):perpendicular2():normalized()*width/2
+	local c3 = endPos+Vector(Vector(startPos)-endPos):perpendicular():normalized()*width/2
+	local c4 = endPos+Vector(Vector(startPos)-endPos):perpendicular2():normalized()*width/2
+	DrawLine3D(c1.x,c1.y,c1.z,c2.x,c2.y,c2.z,math.ceil(width/100),ARGB(255, 255, 255, 255))
+	DrawLine3D(c3.x,c3.y,c3.z,c4.x,c4.y,c4.z,math.ceil(width/100),ARGB(255, 255, 255, 255))
+	local c1 = startPos+Vector(Vector(endPos)-startPos):perpendicular():normalized()*width
+	local c2 = startPos+Vector(Vector(endPos)-startPos):perpendicular2():normalized()*width
+	local c3 = endPos+Vector(Vector(startPos)-endPos):perpendicular():normalized()*width
+	local c4 = endPos+Vector(Vector(startPos)-endPos):perpendicular2():normalized()*width
+	DrawLine3D(c1.x,c1.y,c1.z,c2.x,c2.y,c2.z,math.ceil(width/100),ARGB(255, 255, 255, 255))
+	DrawLine3D(c2.x,c2.y,c2.z,c3.x,c3.y,c3.z,math.ceil(width/100),ARGB(255, 255, 255, 255))
+	DrawLine3D(c3.x,c3.y,c3.z,c4.x,c4.y,c4.z,math.ceil(width/100),ARGB(255, 255, 255, 255))
+	DrawLine3D(c1.x,c1.y,c1.z,c4.x,c4.y,c4.z,math.ceil(width/100),ARGB(255, 255, 255, 255))
 end
-assert(loadstring(CloudDecode("aWYgR2V0T2JqZWN0TmFtZShHZXRNeUhlcm8oKSkgfj0gIkFocmkiIHRoZW4gcmV0dXJuIGVuZAoKcmVxdWlyZSgnSW5zcGlyZWQnKQpyZXF1aXJlKCdEZWZ0TGliJykKcmVxdWlyZSgnRGFtYWdlTGliJykKcmVxdWlyZSgiT3BlblByZWRpY3QiKQoKbG9jYWwgQWhyaU1lbnUgPSBNZW51Q29uZmlnKCJFeHBlcmltZW50YWwgQWhyaSIsICJBaHJpIikKQWhyaU1lbnU6TWVudSgiQ29tYm8iLCAiQ29tYm8iKQpBaHJpTWVudS5Db21ibzpCb29sZWFuKCJRIiwgIlVzZSBRIiwgdHJ1ZSkKQWhyaU1lbnUuQ29tYm86Qm9vbGVhbigiVyIsICJVc2UgVyIsIHRydWUpCkFocmlNZW51LkNvbWJvOkJvb2xlYW4oIkUiLCAiVXNlIEUiLCB0cnVlKQpBaHJpTWVudS5Db21ibzpCb29sZWFuKCJSIiwgIlVzZSBSIiwgdHJ1ZSkKQWhyaU1lbnUuQ29tYm86RHJvcERvd24oIlJNb2RlIiwgIlIgTW9kZSIsIDEsIHsiTG9naWMiLCAidG8gbW91c2UifSkKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpBaHJpTWVudTpNZW51KCJIYXJhc3MiLCAiSGFyYXNzIikKQWhyaU1lbnUuSGFyYXNzOkJvb2xlYW4oIlEiLCAiVXNlIFEiLCB0cnVlKQpBaHJpTWVudS5IYXJhc3M6Qm9vbGVhbigiVyIsICJVc2UgVyIsIHRydWUpCkFocmlNZW51LkhhcmFzczpCb29sZWFuKCJFIiwgIlVzZSBFIiwgdHJ1ZSkKQWhyaU1lbnUuSGFyYXNzOlNsaWRlcigiTWFuYSIsICJpZiBNYW5hICUgPiIsIDMwLCAwLCA4MCwgMSkKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpBaHJpTWVudTpNZW51KCJLaWxsc3RlYWwiLCAiS2lsbHN0ZWFsIikKQWhyaU1lbnUuS2lsbHN0ZWFsOkJvb2xlYW4oIlEiLCAiS2lsbHN0ZWFsIHdpdGggUSIsIHRydWUpCkFocmlNZW51LktpbGxzdGVhbDpCb29sZWFuKCJXIiwgIktpbGxzdGVhbCB3aXRoIFciLCB0cnVlKQpBaHJpTWVudS5LaWxsc3RlYWw6Qm9vbGVhbigiRSIsICJLaWxsc3RlYWwgd2l0aCBFIiwgdHJ1ZSkKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQppZiBJZ25pdGUgfj0gbmlsIHRoZW4gCkFocmlNZW51Ok1lbnUoIk1pc2MiLCAiTWlzYyIpCkFocmlNZW51Lk1pc2M6Qm9vbGVhbigiQXV0b2lnbml0ZSIsICJBdXRvIElnbml0ZSIsIHRydWUpIAplbmQKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpBaHJpTWVudTpNZW51KCJMYXN0aGl0IiwgIkxhc3RoaXQiKQpBaHJpTWVudS5MYXN0aGl0OkJvb2xlYW4oIlEiLCAiVXNlIFEiLCBmYWxzZSkKQWhyaU1lbnUuTGFzdGhpdDpTbGlkZXIoIk1hbmEiLCAiaWYgTWFuYSAlID4iLCA1MCwgMCwgODAsIDEpCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KQWhyaU1lbnU6TWVudSgiTGFuZUNsZWFyIiwgIkxhbmVDbGVhciIpCkFocmlNZW51LkxhbmVDbGVhcjpCb29sZWFuKCJRIiwgIlVzZSBRIiwgdHJ1ZSkKQWhyaU1lbnUuTGFuZUNsZWFyOkJvb2xlYW4oIlciLCAiVXNlIFciLCBmYWxzZSkKQWhyaU1lbnUuTGFuZUNsZWFyOkJvb2xlYW4oIkUiLCAiVXNlIEUiLCBmYWxzZSkKQWhyaU1lbnUuTGFuZUNsZWFyOlNsaWRlcigiTWFuYSIsICJpZiBNYW5hICUgPiIsIDMwLCAwLCA4MCwgMSkKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpBaHJpTWVudTpNZW51KCJKdW5nbGVDbGVhciIsICJKdW5nbGVDbGVhciIpCkFocmlNZW51Lkp1bmdsZUNsZWFyOkJvb2xlYW4oIlEiLCAiVXNlIFEiLCB0cnVlKQpBaHJpTWVudS5KdW5nbGVDbGVhcjpCb29sZWFuKCJXIiwgIlVzZSBXIiwgdHJ1ZSkKQWhyaU1lbnUuSnVuZ2xlQ2xlYXI6Qm9vbGVhbigiRSIsICJVc2UgRSIsIHRydWUpCkFocmlNZW51Lkp1bmdsZUNsZWFyOlNsaWRlcigiTWFuYSIsICJpZiBNYW5hICUgPiIsIDMwLCAwLCA4MCwgMSkKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpBaHJpTWVudTpNZW51KCJEcmF3aW5ncyIsICJEcmF3aW5ncyIpCkFocmlNZW51LkRyYXdpbmdzOkJvb2xlYW4oIk9yYiIsICJEcmF3IE9yYiAoUSkiLCB0cnVlKQpBaHJpTWVudS5EcmF3aW5nczpCb29sZWFuKCJRIiwgIkRyYXcgUSBSYW5nZSIsIHRydWUpCkFocmlNZW51LkRyYXdpbmdzOkJvb2xlYW4oIlciLCAiRHJhdyBXIFJhbmdlIiwgdHJ1ZSkKQWhyaU1lbnUuRHJhd2luZ3M6Qm9vbGVhbigiRSIsICJEcmF3IEUgUmFuZ2UiLCB0cnVlKQpBaHJpTWVudS5EcmF3aW5nczpCb29sZWFuKCJSIiwgIkRyYXcgUiBSYW5nZSIsIHRydWUpCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KQWhyaU1lbnU6TWVudSgiSW50ZXJydXB0IiwgIkludGVycnVwdCAoRSkiKQoKRGVsYXlBY3Rpb24oZnVuY3Rpb24oKQogIGxvY2FsIHN0ciA9IHtbX1FdID0gIlEiLCBbX1ddID0gIlciLCBbX0VdID0gIkUiLCBbX1JdID0gIlIifQogIGZvciBpLCBzcGVsbCBpbiBwYWlycyhDSEFORUxMSU5HX1NQRUxMUykgZG8KICAgIGZvciBfLGsgaW4gcGFpcnMoR2V0RW5lbXlIZXJvZXMoKSkgZG8KICAgICAgICBpZiBzcGVsbFsiTmFtZSJdID09IEdldE9iamVjdE5hbWUoaykgdGhlbgogICAgICAgIEFocmlNZW51LkludGVycnVwdDpCb29sZWFuKEdldE9iamVjdE5hbWUoaykuLiJJbnRlciIsICJPbiAiLi5HZXRPYmplY3ROYW1lKGspLi4iICIuLih0eXBlKHNwZWxsLlNwZWxsc2xvdCkgPT0gJ251bWJlcicgYW5kIHN0cltzcGVsbC5TcGVsbHNsb3RdKSwgdHJ1ZSkKICAgICAgICBlbmQKICAgIGVuZAogIGVuZAplbmQsIDEpCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KbG9jYWwgZnVuY3Rpb24gTW9kZSgpCiAgICBpZiBJT1dfTG9hZGVkIHRoZW4gCiAgICAgICAgcmV0dXJuIElPVzpNb2RlKCkKICAgIGVsc2VpZiBEQUNfTG9hZGVkIHRoZW4gCiAgICAgICAgcmV0dXJuIERBQzpNb2RlKCkKICAgIGVsc2VpZiBQV19Mb2FkZWQgdGhlbiAKICAgICAgICByZXR1cm4gUFc6TW9kZSgpCiAgICBlbHNlaWYgR29TV2Fsa0xvYWRlZCBhbmQgR29TV2Fsay5DdXJyZW50TW9kZSB0aGVuIAogICAgICAgIHJldHVybiAoeyJDb21ibyIsICJIYXJhc3MiLCAiTGFuZUNsZWFyIiwgIkxhc3RIaXQifSlbR29TV2Fsay5DdXJyZW50TW9kZSsxXQogICAgZWxzZWlmIEF1dG9DYXJyeV9Mb2FkZWQgdGhlbiAKICAgICAgICByZXR1cm4gREFDUjpNb2RlKCkKICAgIGVsc2VpZiBfRy5TTFdfTG9hZGVkIHRoZW4gCiAgICAgICAgcmV0dXJuIFNMVzpNb2RlKCkKICAgIGVsc2VpZiBFT1dfTG9hZGVkIHRoZW4gCiAgICAgICAgcmV0dXJuIEVPVzpNb2RlKCkKICAgIGVuZAogICAgcmV0dXJuICIiCmVuZAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCk9uUHJvY2Vzc1NwZWxsKGZ1bmN0aW9uKHVuaXQsIHNwZWxsKQogICAgaWYgR2V0T2JqZWN0VHlwZSh1bml0KSA9PSBPYmpfQUlfSGVybyBhbmQgR2V0VGVhbSh1bml0KSB+PSBHZXRUZWFtKG15SGVybykgYW5kIElzUmVhZHkoX0UpIHRoZW4KICAgICAgaWYgQ0hBTkVMTElOR19TUEVMTFNbc3BlbGwubmFtZV0gdGhlbgogICAgICAgIGlmIFZhbGlkVGFyZ2V0KHVuaXQsIDEwMDApIGFuZCBHZXRPYmplY3ROYW1lKHVuaXQpID09IENIQU5FTExJTkdfU1BFTExTW3NwZWxsLm5hbWVdLk5hbWUgYW5kIEFocmlNZW51LkludGVycnVwdFtHZXRPYmplY3ROYW1lKHVuaXQpLi4iSW50ZXIiXTpWYWx1ZSgpIHRoZW4gCiAgICAgICAgQ2FzdChfRSx1bml0KQogICAgICAgIGVuZAogICAgICBlbmQKICAgIGVuZAplbmQpCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KbG9jYWwgdGFyZ2V0MSA9IFRhcmdldFNlbGVjdG9yKDkzMCxUQVJHRVRfTEVTU19DQVNUX1BSSU9SSVRZLERBTUFHRV9NQUdJQyx0cnVlLGZhbHNlKQpsb2NhbCB0YXJnZXQyID0gVGFyZ2V0U2VsZWN0b3IoMTAzMCxUQVJHRVRfTEVTU19DQVNUX1BSSU9SSVRZLERBTUFHRV9NQUdJQyx0cnVlLGZhbHNlKQpsb2NhbCB0YXJnZXQzID0gVGFyZ2V0U2VsZWN0b3IoOTAwLFRBUkdFVF9MRVNTX0NBU1RfUFJJT1JJVFksREFNQUdFX01BR0lDLHRydWUsZmFsc2UpCmxvY2FsIFVsdE9uID0gZmFsc2UKbG9jYWwgTWlzc2lsZXMgPSB7fQoKT25DcmVhdGVPYmooZnVuY3Rpb24oT2JqZWN0KSAKICBpZiBHZXRPYmplY3RCYXNlTmFtZShPYmplY3QpID09ICJtaXNzaWxlIiB0aGVuCiAgdGFibGUuaW5zZXJ0KE1pc3NpbGVzLE9iamVjdCkgCiAgZW5kCmVuZCkKCk9uRGVsZXRlT2JqKGZ1bmN0aW9uKE9iamVjdCkKICBpZiBHZXRPYmplY3RCYXNlTmFtZShPYmplY3QpID09ICJtaXNzaWxlIiB0aGVuCiAgICBmb3IgaSxyaXAgaW4gcGFpcnMoTWlzc2lsZXMpIGRvCiAgICAgIGlmIEdldE5ldHdvcmtJRChPYmplY3QpID09IEdldE5ldHdvcmtJRChyaXApIHRoZW4KICAgICAgdGFibGUucmVtb3ZlKE1pc3NpbGVzLGkpIAogICAgICBlbmQKICAgIGVuZAogIGVuZAplbmQpCi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KT25EcmF3KGZ1bmN0aW9uKG15SGVybykKbG9jYWwgcG9zID0gR2V0T3JpZ2luKG15SGVybykKaWYgQWhyaU1lbnUuRHJhd2luZ3MuT3JiOlZhbHVlKCkgdGhlbgogIGZvciBfLE9yYiBpbiBwYWlycyhNaXNzaWxlcykgZG8KICAgIGlmIE9yYiB+PSBuaWwgYW5kIEdldE9iamVjdFNwZWxsT3duZXIoT3JiKSA9PSBteUhlcm8gYW5kIEdldE9iamVjdFNwZWxsTmFtZShPcmIpID09ICJBaHJpT3JiTWlzc2lsZSIgb3IgR2V0T2JqZWN0U3BlbGxOYW1lKE9yYikgPT0gIkFocmlPcmJSZXR1cm4iIHRoZW4KICAgIERyYXdSZWN0YW5nbGVPdXRsaW5lKHBvcywgR2V0T3JpZ2luKE9yYiksIDgwKQogICAgRHJhd0NpcmNsZShHZXRPcmlnaW4oT3JiKSw4MCwyLDMwLEFSR0IoMjU1LCAyNTUsIDAsIDApKSAKICAgIGVuZAogIGVuZAplbmQKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQppZiBBaHJpTWVudS5EcmF3aW5ncy5ROlZhbHVlKCkgdGhlbiBEcmF3Q2lyY2xlKHBvcyw4ODAsMSwyNSxHb1MuUGluaykgZW5kCmlmIEFocmlNZW51LkRyYXdpbmdzLlc6VmFsdWUoKSB0aGVuIERyYXdDaXJjbGUocG9zLDcwMCwxLDI1LEdvUy5ZZWxsb3cpIGVuZAppZiBBaHJpTWVudS5EcmF3aW5ncy5FOlZhbHVlKCkgdGhlbiBEcmF3Q2lyY2xlKHBvcyw5NzUsMSwyNSxHb1MuQmx1ZSkgZW5kCmlmIEFocmlNZW51LkRyYXdpbmdzLlI6VmFsdWUoKSB0aGVuIERyYXdDaXJjbGUocG9zLDU1MCwxLDI1LEdvUy5HcmVlbikgZW5kCmVuZCkKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpPblRpY2soZnVuY3Rpb24obXlIZXJvKQoKICAgIGxvY2FsIHRhcmdldCA9IEdldEN1cnJlbnRUYXJnZXQoKQogICAgbG9jYWwgUXRhcmdldCA9IHRhcmdldDE6R2V0VGFyZ2V0KCkKICAgIGxvY2FsIEV0YXJnZXQgPSB0YXJnZXQyOkdldFRhcmdldCgpCiAgICBsb2NhbCBSdGFyZ2V0ID0gdGFyZ2V0MzpHZXRUYXJnZXQoKQogICAgbG9jYWwgbW91c2VQb3MgPSBHZXRNb3VzZVBvcygpCiAgICAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgICAgIGlmIE1vZGUoKSA9PSAiQ29tYm8iIHRoZW4KCiAgICAgICAgaWYgSXNSZWFkeShfRSkgYW5kIEFocmlNZW51LkNvbWJvLkU6VmFsdWUoKSB0aGVuCiAgICAgICAgQ2FzdChfRSxFdGFyZ2V0KQogICAgICAgIGVuZAoJCiAgICAgICAgaWYgQWhyaU1lbnUuQ29tYm8uUk1vZGU6VmFsdWUoKSA9PSAxIGFuZCBBaHJpTWVudS5Db21iby5SOlZhbHVlKCkgYW5kIFZhbGlkVGFyZ2V0KFJ0YXJnZXQsOTAwKSB0aGVuCiAgICAgICAgICBsb2NhbCBCZXN0UG9zID0gVmVjdG9yKFJ0YXJnZXQpIC0gKFZlY3RvcihSdGFyZ2V0KSAtIFZlY3RvcihteUhlcm8pKTpwZXJwZW5kaWN1bGFyKCk6bm9ybWFsaXplZCgpICogMzUwCgkgIGlmIFVsdE9uIGFuZCBCZXN0UG9zIHRoZW4KICAgICAgICAgIENhc3RTa2lsbFNob3QoX1IsQmVzdFBvcykKICAgICAgICAgIGVsc2VpZiBJc1JlYWR5KF9SKSBhbmQgQmVzdFBvcyBhbmQgZ2V0ZG1nKCJRIixSdGFyZ2V0KStnZXRkbWcoIlciLFJ0YXJnZXQsbXlIZXJvLDMpK2dldGRtZygiRSIsUnRhcmdldCkrZ2V0ZG1nKCJSIixSdGFyZ2V0KSA+IEdldEhQMihSdGFyZ2V0KSB0aGVuCgkgIENhc3RTa2lsbFNob3QoX1IsQmVzdFBvcykKCSAgZW5kCgllbmQKCiAgICAgICAgaWYgQWhyaU1lbnUuQ29tYm8uUk1vZGU6VmFsdWUoKSA9PSAyIGFuZCBBaHJpTWVudS5Db21iby5SOlZhbHVlKCkgYW5kIFZhbGlkVGFyZ2V0KFJ0YXJnZXQsOTAwKXRoZW4KICAgICAgICAgIGxvY2FsIEFmdGVyVHVtYmxlUG9zID0gR2V0T3JpZ2luKG15SGVybykgKyAoVmVjdG9yKG1vdXNlUG9zKSAtIEdldE9yaWdpbihteUhlcm8pKTpub3JtYWxpemVkKCkgKiA1NTAKICAgICAgICAgIGxvY2FsIERpc3RhbmNlQWZ0ZXJUdW1ibGUgPSBHZXREaXN0YW5jZShBZnRlclR1bWJsZVBvcywgUnRhcmdldCkKICAgCSAgaWYgVWx0T24gYW5kIERpc3RhbmNlQWZ0ZXJUdW1ibGUgPCA1NTAgdGhlbgoJICBDYXN0U2tpbGxTaG90KF9SLG1vdXNlUG9zKQogICAgICAgICAgZWxzZWlmIElzUmVhZHkoX1IpIGFuZCBnZXRkbWcoIlEiLFJ0YXJnZXQpK2dldGRtZygiVyIsUnRhcmdldCxteUhlcm8sMykrZ2V0ZG1nKCJFIixSdGFyZ2V0KStnZXRkbWcoIlIiLFJ0YXJnZXQpID4gR2V0SFAyKFJ0YXJnZXQpIHRoZW4KCSAgQ2FzdFNraWxsU2hvdChfUixtb3VzZVBvcykgCiAgICAgICAgICBlbmQKCWVuZAoJCQkKCWlmIElzUmVhZHkoX1cpIGFuZCBWYWxpZFRhcmdldCh0YXJnZXQsNzAwKSBhbmQgQWhyaU1lbnUuQ29tYm8uVzpWYWx1ZSgpIHRoZW4KCUNhc3RTcGVsbChfVykKCWVuZAoJCQoJaWYgSXNSZWFkeShfUSkgYW5kIFZhbGlkVGFyZ2V0ICh0YXJnZXQsIDcwMCkgYW5kIEFocmlNZW51LkNvbWJvLlE6VmFsdWUoKSB0aGVuCiAgICAgICAgQ2FzdChfUSxRdGFyZ2V0KQogICAgICAgIGVuZAoJCQkJCQogICAgZW5kCiAgICAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgICAgICAgaWYgTW9kZSgpID09ICJIYXJhc3MiIGFuZCBHZXRQZXJjZW50TVAobXlIZXJvKSA+PSBBaHJpTWVudS5IYXJhc3MuTWFuYTpWYWx1ZSgpIHRoZW4KCiAgICAgICAgaWYgSXNSZWFkeShfRSkgYW5kIEFocmlNZW51LkhhcmFzcy5FOlZhbHVlKCkgdGhlbgogICAgICAgIENhc3QoX0UsdGFyZ2V0KQogICAgICAgIGVuZAoJCQkJCiAgICAgICAgaWYgSXNSZWFkeShfVykgYW5kIFZhbGlkVGFyZ2V0KHRhcmdldCwgNzAwKSBhbmQgQWhyaU1lbnUuSGFyYXNzLlc6VmFsdWUoKSB0aGVuCglDYXN0U3BlbGwoX1cpCgllbmQKCQkKCWlmIElzUmVhZHkoX1EpIGFuZCBWYWxpZFRhcmdldCh0YXJnZXQsIDcwMCkgYW5kIEFocmlNZW51LkhhcmFzcy5ROlZhbHVlKCkgdGhlbgogICAgICAgIENhc3RTa2lsbFNob3QoX1EsdGFyZ2V0KQogICAgICAgIGVuZAoJCQogICAgZW5kCgkKICAgIGZvciBpLGVuZW15IGluIHBhaXJzKEdldEVuZW15SGVyb2VzKCkpIGRvCiAgICAJCglpZiBJZ25pdGUgYW5kIEFocmlNZW51Lk1pc2MuQXV0b2lnbml0ZTpWYWx1ZSgpIHRoZW4KICAgICAgICAgIGlmIElzUmVhZHkoSWduaXRlKSBhbmQgMjAqR2V0TGV2ZWwobXlIZXJvKSs1MCA+IEdldEhQKGVuZW15KStHZXRIUFJlZ2VuKGVuZW15KSozIGFuZCBWYWxpZFRhcmdldChlbmVteSwgNjAwKSB0aGVuCiAgICAgICAgICBDYXN0VGFyZ2V0U3BlbGwoZW5lbXksIElnbml0ZSkKICAgICAgICAgIGVuZAogICAgICAgIGVuZAogICAgICAgICAgICAgICAgCglpZiBJc1JlYWR5KF9XKSBhbmQgVmFsaWRUYXJnZXQoZW5lbXksIDkzMCkgYW5kIEFocmlNZW51LktpbGxzdGVhbC5XOlZhbHVlKCkgYW5kIEdldEhQMihlbmVteSkgPCBnZXRkbWcoIlciLGVuZW15LG15SGVybywzKSB0aGVuCglDYXN0U3BlbGwoX1cpCgllbHNlaWYgSXNSZWFkeShfUSkgYW5kIFZhbGlkVGFyZ2V0KGVuZW15LCA3MDApIGFuZCBBaHJpTWVudS5LaWxsc3RlYWwuUTpWYWx1ZSgpIGFuZCBHZXRIUDIoZW5lbXkpIDwgZ2V0ZG1nKCJRIixlbmVteSkgdGhlbiAKCUNhc3QoX1EsZW5lbXkpCgllbHNlaWYgSXNSZWFkeShfRSkgYW5kIFZhbGlkVGFyZ2V0KGVuZW15LCAxMDMwKSBhbmQgQWhyaU1lbnUuS2lsbHN0ZWFsLkU6VmFsdWUoKSBhbmQgR2V0SFAyKGVuZW15KSA8IGdldGRtZygiRSIsZW5lbXkpIHRoZW4KCUNhc3QoX0UsZW5lbXkpCiAgICAgICAgZW5kCgogIGVuZAogIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KICBpZiBNb2RlKCkgPT0gIkxhbmVDbGVhciIgdGhlbgogICAgIAkKICAgICAgICBsb2NhbCBjbG9zZW1pbmlvbiA9IENsb3Nlc3RNaW5pb24oR2V0T3JpZ2luKG15SGVybyksIE1JTklPTl9FTkVNWSkKICAgICAgICBpZiBHZXRQZXJjZW50TVAobXlIZXJvKSA+PSBBaHJpTWVudS5MYW5lQ2xlYXIuTWFuYTpWYWx1ZSgpIHRoZW4KICAgICAgIAkKICAgICAgICAgaWYgSXNSZWFkeShfUSkgYW5kIEFocmlNZW51LkxhbmVDbGVhci5ROlZhbHVlKCkgdGhlbgogICAgICAgICAgIGxvY2FsIEJlc3RQb3MsIEJlc3RIaXQgPSBHZXRMaW5lRmFybVBvc2l0aW9uKDg4MCwgNTAsIE1JTklPTl9FTkVNWSkKICAgICAgICAgICBpZiBCZXN0UG9zIGFuZCBCZXN0SGl0ID4gMiB0aGVuIAogICAgICAgICAgIENhc3RTa2lsbFNob3QoX1EsIEJlc3RQb3MpCiAgICAgICAgICAgZW5kCgkgZW5kCgogICAgICAgICBpZiBJc1JlYWR5KF9XKSBhbmQgQWhyaU1lbnUuTGFuZUNsZWFyLlc6VmFsdWUoKSB0aGVuCiAgICAgICAgICAgaWYgR2V0Q3VycmVudEhQKGNsb3NlbWluaW9uKSA8IGdldGRtZygiVyIsY2xvc2VtaW5pb24sbXlIZXJvLDMpIGFuZCBWYWxpZFRhcmdldChjbG9zZXN0bWluaW9uLCA3MDApIHRoZW4KICAgICAgICAgICBDYXN0U3BlbGwoX1cpCiAgICAgICAgICAgZW5kCiAgICAgICAgIGVuZAoKICAgICAgICAgaWYgSXNSZWFkeShfRSkgYW5kIEFocmlNZW51LkxhbmVDbGVhci5FOlZhbHVlKCkgdGhlbgogICAgICAgICAgIGlmIEdldEN1cnJlbnRIUChjbG9zZW1pbmlvbikgPCBnZXRkbWcoIkUiLGNsb3NlbWluaW9uKSBhbmQgVmFsaWRUYXJnZXQoY2xvc2VzdG1pbmlvbiwgMTAwMCkgdGhlbgogICAgICAgICAgIENhc3RTa2lsbFNob3QoX0UsIEdldE9yaWdpbihjbG9zZW1pbmlvbikpCiAgICAgICAgICAgZW5kCiAgICAgICAgIGVuZAogICAgICAgIAogICAgICAgIGVuZAoKICBlbmQKICAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgZm9yIGksbW9icyBpbiBwYWlycyhtaW5pb25NYW5hZ2VyLm9iamVjdHMpIGRvCiAgICAgICAgaWYgTW9kZSgpID09ICJMYW5lQ2xlYXIiIGFuZCBHZXRUZWFtKG1vYnMpID09IDMwMCBhbmQgR2V0UGVyY2VudE1QKG15SGVybykgPj0gQWhyaU1lbnUuSnVuZ2xlQ2xlYXIuTWFuYTpWYWx1ZSgpIHRoZW4KICAgICAgICAgIGlmIElzUmVhZHkoX1EpIGFuZCBBaHJpTWVudS5KdW5nbGVDbGVhci5ROlZhbHVlKCkgYW5kIFZhbGlkVGFyZ2V0KG1vYnMsIDg4MCkgdGhlbgogICAgICAgICAgQ2FzdFNraWxsU2hvdChfUSxHZXRPcmlnaW4obW9icykpCgkgIGVuZAoJCQoJICBpZiBJc1JlYWR5KF9XKSBhbmQgQWhyaU1lbnUuSnVuZ2xlQ2xlYXIuVzpWYWx1ZSgpIGFuZCBWYWxpZFRhcmdldChtb2JzLCA3MDApIHRoZW4KCSAgQ2FzdFNwZWxsKF9XKQoJICBlbmQKCQkKCSAgaWYgSXNSZWFkeShfRSkgYW5kIEFocmlNZW51Lkp1bmdsZUNsZWFyLkU6VmFsdWUoKSBhbmQgVmFsaWRUYXJnZXQobW9icywgMTAwMCkgdGhlbgoJICBDYXN0U2tpbGxTaG90KF9FLEdldE9yaWdpbihtb2JzKSkKICAgICAgICAgIGVuZAogICAgICAgIGVuZAogICAgIAkKICAgICAJLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQoJaWYgTW9kZSgpID09ICJMYXN0SGl0IiBhbmQgR2V0VGVhbShtb2JzKSA9PSBNSU5JT05fRU5FTVkgYW5kIEdldFBlcmNlbnRNUChteUhlcm8pID49IEFocmlNZW51Lkxhc3RoaXQuTWFuYTpWYWx1ZSgpIHRoZW4KCSAgaWYgSXNSZWFkeShfUSkgYW5kIFZhbGlkVGFyZ2V0KG1vYnMsIDg4MCkgYW5kIEFocmlNZW51Lkxhc3RoaXQuUTpWYWx1ZSgpIGFuZCBHZXRDdXJyZW50SFAobW9icyktR2V0RGFtYWdlUHJlZGljdGlvbihtb2JzLCAyNTArR2V0RGlzdGFuY2UobW9icykvMjUwMCkgPCBnZXRkbWcoIlEiLG1vYnMpIGFuZCBHZXRDdXJyZW50SFAobW9icyktR2V0RGFtYWdlUHJlZGljdGlvbihtb2JzLCAyNTArR2V0RGlzdGFuY2UobW9icykvMjUwMCkgPiAwIHRoZW4KICAgICAgICAgIENhc3RTa2lsbFNob3QoX1EsIEdldE9yaWdpbihtb2JzKSkKICAgICAgIAkgIGVuZAogICAgICAgIGVuZAogICAgZW5kICAgICAgIAoKZW5kKQotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCk9uVXBkYXRlQnVmZihmdW5jdGlvbih1bml0LGJ1ZmYpCiAgaWYgYnVmZi5OYW1lID09ICJhaHJpdHVtYmxlIiB0aGVuIAogIFVsdE9uID0gdHJ1ZQogIGVuZAplbmQpCgpPblJlbW92ZUJ1ZmYoZnVuY3Rpb24odW5pdCxidWZmKQogIGlmIGJ1ZmYuTmFtZSA9PSAiYWhyaXR1bWJsZSIgdGhlbiAKICBVbHRPbiA9IGZhbHNlCiAgZW5kCmVuZCkKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQpmdW5jdGlvbiBEcmF3UmVjdGFuZ2xlT3V0bGluZShzdGFydFBvcywgZW5kUG9zLCB3aWR0aCkKCWxvY2FsIGMxID0gc3RhcnRQb3MrVmVjdG9yKFZlY3RvcihlbmRQb3MpLXN0YXJ0UG9zKTpwZXJwZW5kaWN1bGFyKCk6bm9ybWFsaXplZCgpKndpZHRoLzIKCWxvY2FsIGMyID0gc3RhcnRQb3MrVmVjdG9yKFZlY3RvcihlbmRQb3MpLXN0YXJ0UG9zKTpwZXJwZW5kaWN1bGFyMigpOm5vcm1hbGl6ZWQoKSp3aWR0aC8yCglsb2NhbCBjMyA9IGVuZFBvcytWZWN0b3IoVmVjdG9yKHN0YXJ0UG9zKS1lbmRQb3MpOnBlcnBlbmRpY3VsYXIoKTpub3JtYWxpemVkKCkqd2lkdGgvMgoJbG9jYWwgYzQgPSBlbmRQb3MrVmVjdG9yKFZlY3RvcihzdGFydFBvcyktZW5kUG9zKTpwZXJwZW5kaWN1bGFyMigpOm5vcm1hbGl6ZWQoKSp3aWR0aC8yCglEcmF3TGluZTNEKGMxLngsYzEueSxjMS56LGMyLngsYzIueSxjMi56LG1hdGguY2VpbCh3aWR0aC8xMDApLEFSR0IoMjU1LCAyNTUsIDI1NSwgMjU1KSkKCURyYXdMaW5lM0QoYzMueCxjMy55LGMzLnosYzQueCxjNC55LGM0LnosbWF0aC5jZWlsKHdpZHRoLzEwMCksQVJHQigyNTUsIDI1NSwgMjU1LCAyNTUpKQoJbG9jYWwgYzEgPSBzdGFydFBvcytWZWN0b3IoVmVjdG9yKGVuZFBvcyktc3RhcnRQb3MpOnBlcnBlbmRpY3VsYXIoKTpub3JtYWxpemVkKCkqd2lkdGgKCWxvY2FsIGMyID0gc3RhcnRQb3MrVmVjdG9yKFZlY3RvcihlbmRQb3MpLXN0YXJ0UG9zKTpwZXJwZW5kaWN1bGFyMigpOm5vcm1hbGl6ZWQoKSp3aWR0aAoJbG9jYWwgYzMgPSBlbmRQb3MrVmVjdG9yKFZlY3RvcihzdGFydFBvcyktZW5kUG9zKTpwZXJwZW5kaWN1bGFyKCk6bm9ybWFsaXplZCgpKndpZHRoCglsb2NhbCBjNCA9IGVuZFBvcytWZWN0b3IoVmVjdG9yKHN0YXJ0UG9zKS1lbmRQb3MpOnBlcnBlbmRpY3VsYXIyKCk6bm9ybWFsaXplZCgpKndpZHRoCglEcmF3TGluZTNEKGMxLngsYzEueSxjMS56LGMyLngsYzIueSxjMi56LG1hdGguY2VpbCh3aWR0aC8xMDApLEFSR0IoMjU1LCAyNTUsIDI1NSwgMjU1KSkKCURyYXdMaW5lM0QoYzIueCxjMi55LGMyLnosYzMueCxjMy55LGMzLnosbWF0aC5jZWlsKHdpZHRoLzEwMCksQVJHQigyNTUsIDI1NSwgMjU1LCAyNTUpKQoJRHJhd0xpbmUzRChjMy54LGMzLnksYzMueixjNC54LGM0LnksYzQueixtYXRoLmNlaWwod2lkdGgvMTAwKSxBUkdCKDI1NSwgMjU1LCAyNTUsIDI1NSkpCglEcmF3TGluZTNEKGMxLngsYzEueSxjMS56LGM0LngsYzQueSxjNC56LG1hdGguY2VpbCh3aWR0aC8xMDApLEFSR0IoMjU1LCAyNTUsIDI1NSwgMjU1KSkKZW5kCgotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCmZ1bmN0aW9uIERyYXdMaW5lM0QoeCx5LHosYSxiLGMsd2lkdGgsY29sKQoJbG9jYWwgcDEgPSBXb3JsZFRvU2NyZWVuKDAsIFZlY3Rvcih4LHkseikpCglsb2NhbCBwMiA9IFdvcmxkVG9TY3JlZW4oMCwgVmVjdG9yKGEsYixjKSkKCURyYXdMaW5lKHAxLngsIHAxLnksIHAyLngsIHAyLnksIHdpZHRoLCBjb2wpCmVuZAoKQWRkR2FwY2xvc2VFdmVudChfRSwgNjY2LCBmYWxzZSwgQWhyaU1lbnUpCgpQcmludENoYXQoIkV4cGVyaW1lbnRhbCBBaHJpIikgCg=="), nil, "bt", _ENV))()
+
+----------------------------------------------------------------------
+function DrawLine3D(x,y,z,a,b,c,width,col)
+	local p1 = WorldToScreen(0, Vector(x,y,z))
+	local p2 = WorldToScreen(0, Vector(a,b,c))
+	DrawLine(p1.x, p1.y, p2.x, p2.y, width, col)
+end
+
+AddGapcloseEvent(_E, 666, false, AhriMenu)
+
+PrintChat("Experimental Ahri") 
